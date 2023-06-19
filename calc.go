@@ -4,11 +4,20 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/csv"
-	"fmt"
 	"io"
 	"math"
 	"strconv"
 )
+
+type Mirror struct {
+	h string
+	k string
+	l string
+	m string
+	n string
+	o string
+	N float64
+}
 
 //go:embed embed/ac11.csv
 var ac11 []byte
@@ -29,8 +38,8 @@ func calcTowTheta(wl, n, lc float64) float64 {
 	return math.Asin(wl*math.Sqrt(n)/2/lc) * 360 / math.Pi
 }
 
-func calcAcPeak(lc, wl float64) (*[]string, error) {
-	var list []string
+func calcAcPeak(lc, wl float64) (*[]Mirror, error) {
+	var list []Mirror
 	r := csv.NewReader(bytes.NewReader(ac11))
 
 	for {
@@ -49,16 +58,15 @@ func calcAcPeak(lc, wl float64) (*[]string, error) {
 		l, _ := strconv.ParseFloat(rec[2], 64)
 
 		N := sq(h, k, l)
-		tt := calcTowTheta(wl, N, lc)
 
-		list = append(list, fmt.Sprintf("(%s, %s, %s) ~%.2f:", rec[0], rec[1], rec[2], tt))
+		list = append(list, Mirror{rec[0], rec[1], rec[2], "", "", "", N})
 	}
 
 	return &list, nil
 }
 
-func calcQcPeak(lc, wl float64) (*[]string, error) {
-	var list []string
+func calcQcPeak(lc, wl float64) (*[]Mirror, error) {
+	var list []Mirror
 	r := csv.NewReader(bytes.NewReader(qc))
 
 	for {
@@ -87,10 +95,19 @@ func calcQcPeak(lc, wl float64) (*[]string, error) {
 		r6 := h + k - l - m + n + math.Sqrt(5)*o
 
 		N := sq(r1, r2, r3, r4, r5, r6) / 20
-		tt := calcTowTheta(wl, N, lc)
 
-		list = append(list, fmt.Sprintf("(%s, %s, %s, %s, %s, %s) ~%.2f:", rec[0], rec[1], rec[2], rec[3], rec[4], rec[5], tt))
+		list = append(list, Mirror{rec[0], rec[1], rec[2], rec[3], rec[4], rec[5], N})
 	}
 
 	return &list, nil
+}
+
+func calcNR(th float64) string {
+	r := th * math.Pi / 360
+	i := math.Pow(math.Cos(r), 2)
+	return strconv.FormatFloat(i/math.Sin(r)+i/r, 'f', -1, 64)
+}
+
+func calcLatticeConstant(n, wl, th float64) string {
+	return strconv.FormatFloat(wl*math.Sqrt(n)/2/math.Sin(th*math.Pi/360), 'f', -1, 64)
 }

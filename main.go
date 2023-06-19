@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/csv"
+	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/gdamore/tcell/v2"
@@ -8,6 +11,7 @@ import (
 )
 
 func main() {
+	var labels *[]Mirror
 	app := tview.NewApplication().EnableMouse(true)
 
 	list := tview.NewForm()
@@ -31,7 +35,6 @@ func main() {
 			lc, _ := strconv.ParseFloat(cfg.GetFormItem(2).(*tview.InputField).GetText(), 64)
 			wl, _ := strconv.ParseFloat(cfg.GetFormItem(3).(*tview.InputField).GetText(), 64)
 			go func() {
-				var labels *[]string
 				if ph == 0 {
 					labels, _ = calcQcPeak(lc, wl)
 				} else {
@@ -40,15 +43,66 @@ func main() {
 
 				app.QueueUpdateDraw(func() {
 					list.Clear(true)
-					for _, l := range *labels {
-						list.AddInputField(l, "", 10, tview.InputFieldFloat, nil)
+					for _, m := range *labels {
+						if ph == 0 {
+							list.AddInputField(
+								fmt.Sprintf("(%s, %s, %s, %s, %s, %s) ~%.2f: ", m.h, m.k, m.l, m.m, m.n, m.o, calcTowTheta(wl, m.N, lc)), "", 10, tview.InputFieldFloat, nil)
+						} else {
+							list.AddInputField(fmt.Sprintf("(%s, %s, %s) ~%.2f: ", m.h, m.k, m.l, calcTowTheta(wl, m.N, lc)), "", 10, tview.InputFieldFloat, nil)
+						}
+
 					}
 					app.SetFocus(list)
 				})
 			}()
 
 		}).
-		AddButton("Save", nil).
+		AddButton("Save", func() {
+			name := cfg.GetFormItem(0).(*tview.InputField).GetText()
+			ph, _ := cfg.GetFormItem(1).(*tview.DropDown).GetCurrentOption()
+			wl, _ := strconv.ParseFloat(cfg.GetFormItem(3).(*tview.InputField).GetText(), 64)
+
+			go func() {
+				f, err := os.Create(name)
+				if err != nil {
+					panic(err)
+				}
+				defer f.Close()
+
+				w := csv.NewWriter(f)
+
+				// header
+				if ph == 0 {
+					if err := w.Write([]string{"#h", "k", "l", "m", "n", "o", "2theta", "NR", "lattice constant"}); err != nil {
+						panic(err)
+					}
+				} else {
+					if err := w.Write([]string{"#h", "k", "l", "2theta", "NR", "lattice constant"}); err != nil {
+						panic(err)
+					}
+				}
+
+				for i, m := range *labels {
+					txt := list.GetFormItem(i).(*tview.InputField).GetText()
+					if txt == "" {
+						continue
+					}
+
+					th, _ := strconv.ParseFloat(txt, 64)
+					if ph == 0 {
+						if err := w.Write([]string{m.h, m.k, m.l, m.m, m.n, m.o, txt, calcNR(th), calcLatticeConstant(m.N, wl, th)}); err != nil {
+							panic(err)
+						}
+					} else {
+						if err := w.Write([]string{m.h, m.k, m.l, txt, calcNR(th), calcLatticeConstant(m.N, wl, th)}); err != nil {
+							panic(err)
+						}
+					}
+				}
+
+				w.Flush()
+			}()
+		}).
 		AddButton("Quit", func() {
 			app.Stop()
 		}).
