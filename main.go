@@ -27,7 +27,7 @@ func main() {
 
 	cfg.
 		AddInputField("* File name", "peeklist.csv", 30, nil, nil).
-		AddDropDown("* Phase", []string{"QC", "1/1AC"}, 0, nil).
+		AddDropDown("* Phase", []string{"QC", "1/1AC", "2/1AC"}, 0, nil).
 		AddInputField("* Lattice constant", "", 10, tview.InputFieldFloat, nil).
 		AddInputField("* X-ray wave length", "1.540593", 10, tview.InputFieldFloat, nil).
 		AddButton("Calc", func() {
@@ -38,7 +38,7 @@ func main() {
 				if ph == 0 {
 					labels, _ = calcQcPeak(lc, wl)
 				} else {
-					labels, _ = calcAcPeak(lc, wl)
+					labels, _ = calcAcPeak(ph, lc, wl)
 				}
 
 				app.QueueUpdateDraw(func() {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"math"
 	"strconv"
@@ -22,6 +23,9 @@ type Mirror struct {
 //go:embed embed/ac11.csv
 var ac11 []byte
 
+//go:embed embed/ac21.csv
+var ac21 []byte
+
 //go:embed embed/qc.csv
 var qc []byte
 
@@ -38,9 +42,16 @@ func calcTowTheta(wl, n, lc float64) float64 {
 	return math.Asin(wl*math.Sqrt(n)/2/lc) * 360 / math.Pi
 }
 
-func calcAcPeak(lc, wl float64) (*[]Mirror, error) {
+func calcAcPeak(ph int, lc, wl float64) (*[]Mirror, error) {
 	var list []Mirror
-	r := csv.NewReader(bytes.NewReader(ac11))
+	var r *csv.Reader
+	if ph == 1 {
+		r = csv.NewReader(bytes.NewReader(ac11))
+	} else if ph == 2 {
+		r = csv.NewReader(bytes.NewReader(ac21))
+	} else {
+		return nil, fmt.Errorf("invalid phase")
+	}
 
 	for {
 		rec, err := r.Read()
